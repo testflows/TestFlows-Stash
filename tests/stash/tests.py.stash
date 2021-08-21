@@ -26,3 +26,31 @@ class_pickle = b'\x80\x04\x95\x1c\x00\x00\x00\x00\x00\x00\x00\x8c\x08__main__\x9
 
 object_pickle = b'\x80\x04\x95)\x00\x00\x00\x00\x00\x00\x00\x8c\x08__main__\x94\x8c\x0bSimpleClass\x94\x93\x94)\x81\x94}\x94\x8c\x01x\x94K\x01sb.'
 
+str_testflows_stash_contrib_jsonpickle = '"hello there"'
+
+int_testflows_stash_contrib_jsonpickle = '1234'
+
+float_testflows_stash_contrib_jsonpickle = '12345.3234234'
+
+dict_testflows_stash_contrib_jsonpickle = '{"a": "b"}'
+
+list_testflows_stash_contrib_jsonpickle = '[1, "a", 3.3]'
+
+tuple_testflows_stash_contrib_jsonpickle = '{"py/tuple": [-1, "hello", {"a": 1}]}'
+
+class_testflows_stash_contrib_jsonpickle = '{"py/type": "__main__.SimpleClass"}'
+
+object_testflows_stash_contrib_jsonpickle = '{"py/object": "__main__.SimpleClass", "x": 1}'
+
+str_marshal = b'\xfa\x0bhello there'
+
+int_marshal = b'\xe9\xd2\x04\x00\x00'
+
+float_marshal = b'\xe7\xe1\x1e\xf0e\xa9\x1c\xc8@'
+
+dict_marshal = b'\xfb\xda\x01a\xda\x01b0'
+
+list_marshal = b'\xdb\x03\x00\x00\x00\xe9\x01\x00\x00\x00\xda\x01a\xe7ffffff\n@'
+
+tuple_marshal = b'\xa9\x03\xe9\xff\xff\xff\xff\xda\x05hello{\xda\x01a\xe9\x01\x00\x00\x000'
+

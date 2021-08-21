@@ -12,17 +12,20 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import json
 import os
-import pickle
 
 from testflows.core import *
 from testflows.asserts import error, raises
 from testflows.stash import stashed
 
+
 class SimpleClass:
     def __init__(self):
         self.x = 1
+
+    def __eq__(self, other):
+        return isinstance(other, self.__class__) and other.x == self.x
+
 
 @TestOutline(Scenario)
 @Examples("name value", [
@@ -56,6 +59,7 @@ def check_empty_with_clause(self):
 
     with raises(ValueError):
         stash.value
+
 
 @TestScenario
 def check_filepath(self):
@@ -94,10 +98,13 @@ def check_namedfile(self):
 
     assert data == b"file data", error()
 
+
 @TestOutline(Suite)
 @Examples("encoder", [
-    (json, Name("json")),
-    (pickle, Name("pickle"))
+    (stashed.encoder.json, Name("json")),
+    (stashed.encoder.marshal, Name("marshal")),
+    (stashed.encoder.pickle, Name("pickle")),
+    (stashed.encoder.jsonpickle, Name("jsonpickle"))
 ])
 def check_values(self, encoder):
     """Check stashing values using different encoders.
@@ -107,10 +114,17 @@ def check_values(self, encoder):
 
 
 @TestModule
+@XFlags({
+    "check values/json/check value/tuple": (EFAIL, None),
+    "check values/json/check value/class": (EERROR, None),
+    "check values/json/check value/object": (EERROR, None),
+    "check values/marshal/check value/class": (EERROR, None),
+    "check values/marshal/check value/object": (EERROR, None)
+})
 def regression(self):
     """TestFlows - Stash regression suite.
     """
-    #Suite(run=check_values)
+    Suite(run=check_values)
     Scenario(run=check_empty_with_clause)
     Scenario(run=check_filepath)
     Scenario(run=check_namedfile)

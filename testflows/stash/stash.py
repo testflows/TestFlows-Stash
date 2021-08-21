@@ -16,7 +16,11 @@ import re
 import os
 import sys
 import json
+import pickle
+import marshal
 import inspect
+
+import testflows.stash.contrib.jsonpickle as jsonpickle
 
 from importlib.machinery import SourceFileLoader
 
@@ -40,8 +44,13 @@ class StashValueFound(Exception):
 
 
 class stashed:
+    class encoder:
+        """Available encoders.
+        """
+        pass
+
     def __init__(self, name, id=None, output=None, path=None,
-            encoder=json):
+            encoder=None):
         """Stash value representation to a stored stash.
 
         Stash files have format:
@@ -55,7 +64,7 @@ class stashed:
         :param encoder: custom encoder for the value, default: json
         """
         self.name = varname(name)
-        self.encoder = encoder
+        self.encoder = encoder if encoder is not None else stashed.encoder.json
         self.output = output
 
         frame = inspect.currentframe().f_back
@@ -93,6 +102,9 @@ class stashed:
     def __call__(self, value):
         """Stash value representation.
         """
+        if hasattr(self, "_value"):
+            raise ValueError("value already set")
+
         self._value = value
 
         with open(self.filename, "a") as fd:
@@ -156,6 +168,12 @@ class filepath(stashed):
     def __call__(self, value):
         """Stash filepath value.
         """
+        if hasattr(self, "_value"):
+            raise ValueError("value already set")
+
+        if os.path.exists(self.filename):
+            raise FileExistsError("filename already in stash")
+
         with open(self.filename, mode="wb") as dst:
             with open(value, mode="rb") as src:
                 while True:
@@ -206,6 +224,12 @@ class namedfile(stashed):
     def __call__(self, file_object):
         """Stash file object.
         """
+        if hasattr(self, "_value"):
+            raise ValueError("value already set")
+
+        if os.path.exists(self.filename):
+            raise FileExistsError("filename already in stash")
+
         file_object.flush()
 
         with open(self.filename, mode="wb") as dst:
@@ -224,6 +248,12 @@ class namedfile(stashed):
             return open(self._value, mode=self.mode)
         raise ValueError("not found")
 
+
+# available encoders
+stashed.encoder.json = json
+stashed.encoder.marshal = marshal
+stashed.encoder.jsonpickle = jsonpickle
+stashed.encoder.pickle = pickle
 
 # set custom stash types
 stashed.filepath = filepath

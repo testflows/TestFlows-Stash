@@ -36,6 +36,7 @@ setup(
     license="Apache-2.0",
     packages=[
         "testflows.stash",
+        "testflows.stash.contrib.jsonpickle",
     ],
     zip_safe=False,
     install_requires=[
