@@ -12,25 +12,108 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import sys
-import re
 import json
+import os
 import pickle
-import tempfile
 
 from testflows.core import *
-from testflows.asserts import error
+from testflows.asserts import error, raises
 from testflows.stash import stashed
+
+class SimpleClass:
+    def __init__(self):
+        self.x = 1
+
+@TestOutline(Scenario)
+@Examples("name value", [
+    ("str", "hello there", Name("str")),
+    ("int", 1234, Name("int")),
+    ("float", 12345.3234234, Name("float")),
+    ("dict", {"a": "b"}, Name("dict")),
+    ("list", [1, "a", 3.3], Name("list")),
+    ("tuple", (-1, "hello", {"a": 1}), Name("tuple")),
+    ("class", SimpleClass, Name("class")),
+    ("object", SimpleClass(), Name("object"))
+])
+def check_value(self, name, value, encoder=None):
+    """Check stashing some value.
+    """
+    if encoder is None:
+        encoder = self.context.encoder
+
+    name = f"{name}-{encoder.__name__}"
+
+    with stashed(name, encoder=encoder) as stash:
+        stash(value)
+
+    assert stash.value == value, error()
+
+
+@TestScenario
+def check_empty_with_clause(self):
+    with stashed("empty with") as stash:
+        pass
+
+    with raises(ValueError):
+        stash.value
+
+@TestScenario
+def check_filepath(self):
+    """Check stashing a value that contains a path to a file.
+    """
+    with stashed.filepath("my_file.txt") as stash:
+        note("creating new file")
+        with open("my_file.txt", mode="w") as fd:
+            fd.write("file data")
+        stash(fd.name)
+        os.remove("my_file.txt")
+
+    assert stash.value == "tests/stash/my_file.txt", error()
+
+    with open(stash.value, mode="r") as fd:
+        data = fd.read()
+
+    assert data == "file data", error()
+
+
+@TestScenario
+def check_namedfile(self):
+    """Check stashing a named file object.
+    """
+    with stashed.namedfile("my_namedfile.txt") as stash:
+        note("creating new file")
+        with open("my_file.txt", mode="w") as fd:
+            fd.write("file data")
+            stash(fd)
+        os.remove("my_file.txt")
+
+    assert stash.value.name == "tests/stash/my_namedfile.txt", error()
+
+    with stash.value as fd:
+        data = fd.read()
+
+    assert data == b"file data", error()
+
+@TestOutline(Suite)
+@Examples("encoder", [
+    (json, Name("json")),
+    (pickle, Name("pickle"))
+])
+def check_values(self, encoder):
+    """Check stashing values using different encoders.
+    """
+    self.context.encoder = encoder
+    Scenario(run=check_value)
 
 
 @TestModule
 def regression(self):
     """TestFlows - Stash regression suite.
     """
-    with Test("str value"):
-        with stashed("str value", encoder=json) as stash:
-            stash("hello there")
-        assert stash.value == "hello there", error()
+    #Suite(run=check_values)
+    Scenario(run=check_empty_with_clause)
+    Scenario(run=check_filepath)
+    Scenario(run=check_namedfile)
 
 
 if main():

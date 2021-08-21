@@ -1,4 +1,4 @@
-# Copyright 2019 Katteli Inc.
+# Copyright 2021 Katteli Inc.
 # TestFlows.com Open-Source Software Testing Framework (http://testflows.com)
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,6 @@ import os
 import sys
 import json
 import inspect
-import textwrap
 
 from importlib.machinery import SourceFileLoader
 
@@ -41,44 +40,44 @@ class StashValueFound(Exception):
 
 
 class stashed:
-    def __init__(self, name, *args, id=None, output=None, path=None, encoder=json):
+    def __init__(self, name, id=None, output=None, path=None,
+            encoder=json):
         """Stash value representation to a stored stash.
-    
+
         Stash files have format:
-    
+
             <test file name>.<id>.stash
-    
+
         :param name: name of the stashed value inside the stash file
         :param id: custom stash id, default: None
         :param output: function to output the representation of the value
         :param path: custom stash path, default: `./stash`
-        :paran encoder: custom stash encoder, default: `repr`
+        :param encoder: custom encoder for the value, default: json
         """
         self.name = varname(name)
         self.encoder = encoder
         self.output = output
-    
+
         frame = inspect.currentframe().f_back
         frame_info = inspect.getframeinfo(frame)
-    
+
         filename = os.path.basename(frame_info.filename)
         if id is not None:
             filename += "." + str(id).lower()
         filename += ".stash"
-    
+
         if path is None:
             path = os.path.join(os.path.dirname(frame_info.filename), "stash")
-    
+
         self.filename = os.path.join(path, filename)
-    
+
         if not os.path.exists(path):
             os.makedirs(path)
-    
+
         if os.path.exists(self.filename):
             stash_module = SourceFileLoader("stash", self.filename).load_module()
             if hasattr(stash_module, self.name):
                 self._value = encoder.loads(getattr(stash_module, self.name))
-
 
     def __skip__(self, *args):
         sys.settrace(self._trace)
@@ -100,13 +99,13 @@ class stashed:
             try:
                 repr_value = repr(self.encoder.dumps(value))
             except:
-                raise ValueError("failed to get representation of the value being stashed")
+                raise ValueError("can't be encoded")
 
             if self.output:
                 self.output(repr_value)
 
-            fd.write(f'''{self.name} = {repr_value}\n\n''')
-    
+            fd.write(f"""{self.name} = {repr_value}\n\n""")
+
     def __exit__(self, exc_type, exc_value, exc_tb):
         if exc_value is not None:
             if isinstance(exc_value, StashValueFound):
@@ -117,6 +116,115 @@ class stashed:
     def value(self):
         if hasattr(self, "_value"):
             return self._value
-        raise ValueError("stash value not found")
+        raise ValueError("not found")
 
 
+class filepath(stashed):
+    """Stashed file specified by a filepath.
+    """
+    def __init__(self, name, id=None, path=None):
+        """Stash value that contains a path to a file.
+
+        The file is copied and stashed as:
+
+            <os.path.basename(name)>
+
+        :param name: name of the stashed file specified by file path
+        :param id: custom stash id, default: None
+        :param path: custom stash path, default: `./stash`
+        """
+        self.name = name
+
+        frame = inspect.currentframe().f_back
+        frame_info = inspect.getframeinfo(frame)
+
+        filename = f"{self.name}"
+        if id is not None:
+            filename += f".{id}"
+
+        if path is None:
+            path = os.path.join(os.path.dirname(frame_info.filename), "stash")
+
+        self.filename = os.path.join(path, filename)
+
+        if not os.path.exists(path):
+            os.makedirs(path)
+
+        if os.path.exists(self.filename):
+            self._value = self.filename
+
+    def __call__(self, value):
+        """Stash filepath value.
+        """
+        with open(self.filename, mode="wb") as dst:
+            with open(value, mode="rb") as src:
+                while True:
+                    data = src.read(65536)
+                    if not data:
+                        break
+                    dst.write(data)
+
+        self._value = self.filename
+
+
+class namedfile(stashed):
+    """Stashed named file.
+    """
+    def __init__(self, name, mode="rb", id=None, path=None):
+        """Stash a named file object.
+
+        The file is copied and stashed as:
+
+            <os.path.basename(name)>
+
+        :param name: name of the file object to be stashed
+        :param mode: file mode, default: `rb`
+        :param id: custom stash id, default: None
+        :param path: custom stash path, default: `./stash`
+        """
+        self.name = name
+        self.mode = mode
+
+        frame = inspect.currentframe().f_back
+        frame_info = inspect.getframeinfo(frame)
+
+        filename = f"{self.name}"
+        if id is not None:
+            filename += f".{id}"
+
+        if path is None:
+            path = os.path.join(os.path.dirname(frame_info.filename), "stash")
+
+        self.filename = os.path.join(path, filename)
+
+        if not os.path.exists(path):
+            os.makedirs(path)
+
+        if os.path.exists(self.filename):
+            self._value = self.filename
+
+    def __call__(self, file_object):
+        """Stash file object.
+        """
+        file_object.flush()
+
+        with open(self.filename, mode="wb") as dst:
+            with open(file_object.name, mode="rb") as src:
+                while True:
+                    data = src.read(65536)
+                    if not data:
+                        break
+                    dst.write(data)
+
+        self._value = self.filename
+
+    @property
+    def value(self):
+        if hasattr(self, "_value"):
+            return open(self._value, mode=self.mode)
+        raise ValueError("not found")
+
+
+# set custom stash types
+stashed.filepath = filepath
+stashed.namedfile = namedfile
