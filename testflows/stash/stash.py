@@ -87,7 +87,7 @@ class stashed:
         if os.path.exists(self.filename):
             stash_module = SourceFileLoader("stash", self.filename).load_module()
             if hasattr(stash_module, self.name):
-                self._value = encoder.loads(getattr(stash_module, self.name))
+                self._value = self.encoder.loads(getattr(stash_module, self.name))
                 self._was_empty = False
 
     def __skip__(self, *args):
