@@ -19,12 +19,14 @@ import json
 import pickle
 import marshal
 import inspect
+import hashlib
 
 import testflows.stash.contrib.jsonpickle as jsonpickle
 
 from importlib.machinery import SourceFileLoader
 
 __all__ = ["stashed"]
+
 
 def varname(s):
     """Make valid Python variable name.
@@ -39,11 +41,40 @@ def varname(s):
     return name
 
 
+def make_filename(name):
+    """Make valid file name.
+    """
+    return "".join(l for l in name if (l.isalnum() or l in "._- ") and l not in "/")
+
+
+class Hash:
+    """Class that provides hashing for any object that is pickle-able.
+    """
+    def __init__(self, encoder=pickle):
+        self._encoder = encoder
+
+    @staticmethod
+    def encoder(encoder):
+        """Return hash object with custom encoder.
+        """
+        return Hash(encoder=encoder)
+
+    def __call__(self, *args, **kwargs):
+        """Return hash for anything that is pickle-able.
+        """
+        return hashlib.sha1(self._encoder.dumps([args, kwargs])).hexdigest()
+
+
 class StashValueFound(Exception):
+    """Exception when stashed value
+    was not found in stash.
+    """
     pass
 
 
 class stashed:
+    """Context manager for stashed values.
+    """
     class encoder:
         """Available encoders.
         """
@@ -141,7 +172,7 @@ class stashed:
         raise ValueError("not found")
 
 
-class filepath(stashed):
+class FilePath(stashed):
     """Stashed file specified by a filepath.
     """
     def __init__(self, name, id=None, path=None):
@@ -164,6 +195,7 @@ class filepath(stashed):
         filename = f"{self.name}"
         if id is not None:
             filename += f".{id}"
+        filename = make_filename(filename)
 
         if path is None:
             path = os.path.join(os.path.dirname(frame_info.filename), "stash")
@@ -186,7 +218,7 @@ class filepath(stashed):
         if value != self.filename:
             if os.path.exists(self.filename):
                 raise FileExistsError("filename already in stash")
-    
+
             with open(self.filename, mode="wb") as dst:
                 with open(value, mode="rb") as src:
                     while True:
@@ -198,7 +230,7 @@ class filepath(stashed):
         self._value = self.filename
 
 
-class namedfile(stashed):
+class NamedFile(stashed):
     """Stashed named file.
     """
     def __init__(self, name, mode="rb", id=None, path=None):
@@ -223,6 +255,7 @@ class namedfile(stashed):
         filename = f"{self.name}"
         if id is not None:
             filename += f".{id}"
+        filename = make_filename(filename)
 
         if path is None:
             path = os.path.join(os.path.dirname(frame_info.filename), "stash")
@@ -245,9 +278,9 @@ class namedfile(stashed):
         if file_object.name != self.filename:
             if os.path.exists(self.filename):
                 raise FileExistsError("filename already in stash")
-    
+
             file_object.flush()
-    
+
             with open(self.filename, mode="wb") as dst:
                 with open(file_object.name, mode="rb") as src:
                     while True:
@@ -272,5 +305,8 @@ stashed.encoder.jsonpickle = jsonpickle
 stashed.encoder.pickle = pickle
 
 # set custom stash types
-stashed.filepath = filepath
-stashed.namedfile = namedfile
+stashed.filepath = FilePath
+stashed.namedfile = NamedFile
+
+# set hash
+stashed.hash = Hash()

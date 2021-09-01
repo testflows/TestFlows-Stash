@@ -1,3 +1,7 @@
+e5c90dc6557b865acc0d07caaed5a14778c2f0 = '"hello there"'
+
+a8209ef9b2a6abd315b6a2a54ecb5bb25c18bcf4 = '"hello there2"'
+
 str_json = '"hello there"'
 
 int_json = '1234'
@@ -8,7 +12,17 @@ dict_json = '{"a": "b"}'
 
 list_json = '[1, "a", 3.3]'
 
-tuple_json = '[-1, "hello", {"a": 1}]'
+str_marshal = b'\xfa\x0bhello there'
+
+int_marshal = b'\xe9\xd2\x04\x00\x00'
+
+float_marshal = b'\xe7\xe1\x1e\xf0e\xa9\x1c\xc8@'
+
+dict_marshal = b'\xfb\xda\x01a\xda\x01b0'
+
+list_marshal = b'\xdb\x03\x00\x00\x00\xe9\x01\x00\x00\x00\xda\x01a\xe7ffffff\n@'
+
+tuple_marshal = b'\xa9\x03\xe9\xff\xff\xff\xff\xda\x05hello{\xda\x01a\xe9\x01\x00\x00\x000'
 
 str_pickle = b'\x80\x04\x95\x0f\x00\x00\x00\x00\x00\x00\x00\x8c\x0bhello there\x94.'
 
@@ -41,16 +55,4 @@ tuple_testflows_stash_contrib_jsonpickle = '{"py/tuple": [-1, "hello", {"a": 1}]
 class_testflows_stash_contrib_jsonpickle = '{"py/type": "__main__.SimpleClass"}'
 
 object_testflows_stash_contrib_jsonpickle = '{"py/object": "__main__.SimpleClass", "x": 1}'
-
-str_marshal = b'\xfa\x0bhello there'
-
-int_marshal = b'\xe9\xd2\x04\x00\x00'
-
-float_marshal = b'\xe7\xe1\x1e\xf0e\xa9\x1c\xc8@'
-
-dict_marshal = b'\xfb\xda\x01a\xda\x01b0'
-
-list_marshal = b'\xdb\x03\x00\x00\x00\xe9\x01\x00\x00\x00\xda\x01a\xe7ffffff\n@'
-
-tuple_marshal = b'\xa9\x03\xe9\xff\xff\xff\xff\xda\x05hello{\xda\x01a\xe9\x01\x00\x00\x000'
 

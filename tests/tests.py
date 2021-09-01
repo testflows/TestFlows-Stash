@@ -27,7 +27,7 @@ class SimpleClass:
         return isinstance(other, self.__class__) and other.x == self.x
 
 
-@TestOutline(Scenario)
+@TestOutline
 @Examples("name value", [
     ("str", "hello there", Name("str")),
     ("int", 1234, Name("int")),
@@ -99,7 +99,7 @@ def check_namedfile(self):
     assert data == b"file data", error()
 
 
-@TestOutline(Suite)
+@TestOutline(Scenario)
 @Examples("encoder", [
     (stashed.encoder.json, Name("json")),
     (stashed.encoder.marshal, Name("marshal")),
@@ -113,21 +113,39 @@ def check_values(self, encoder):
     Scenario(run=check_value)
 
 
+@TestScenario
+def check_using_hash(self):
+    """Check using stashed.hash to get a unique stash name.
+    """
+    with stashed(stashed.hash([1,2,3])) as stash:
+        stash("hello there")
+
+    value1 = stash.value
+
+    with stashed(stashed.hash([1,2,3])) as stash2:
+        stash2("hello there2")
+
+    assert value1 == stash2.value, error()
+
+    with stashed(stashed.hash([3,2,3])) as stash3:
+        stash3("hello there2")
+
+    assert stash3.value == "hello there2", error()
+
+
 @TestModule
 @XFlags({
-    "check values/json/check value/tuple": (EFAIL, None),
-    "check values/json/check value/class": (EERROR, None),
-    "check values/json/check value/object": (EERROR, None),
-    "check values/marshal/check value/class": (EERROR, None),
-    "check values/marshal/check value/object": (EERROR, None)
+    "check values/json/check value/tuple": (SKIP, None),
+    "check values/json/check value/class": (SKIP, None),
+    "check values/json/check value/object": (SKIP, None),
+    "check values/marshal/check value/class": (SKIP, None),
+    "check values/marshal/check value/object": (SKIP, None)
 })
 def regression(self):
     """TestFlows - Stash regression suite.
     """
-    Suite(run=check_values)
-    Scenario(run=check_empty_with_clause)
-    Scenario(run=check_filepath)
-    Scenario(run=check_namedfile)
+    for scenario in loads(current_module(), Scenario):
+        scenario()
 
 
 if main():
