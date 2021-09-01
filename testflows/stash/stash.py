@@ -66,6 +66,7 @@ class stashed:
         self.name = varname(name)
         self.encoder = encoder if encoder is not None else stashed.encoder.json
         self.output = output
+        self._was_empty = True
 
         frame = inspect.currentframe().f_back
         frame_info = inspect.getframeinfo(frame)
@@ -87,6 +88,7 @@ class stashed:
             stash_module = SourceFileLoader("stash", self.filename).load_module()
             if hasattr(stash_module, self.name):
                 self._value = encoder.loads(getattr(stash_module, self.name))
+                self._was_empty = False
 
     def __skip__(self, *args):
         sys.settrace(self._trace)
@@ -125,7 +127,15 @@ class stashed:
             return False
 
     @property
+    def was_empty(self):
+        """Return True if stash was empty.
+        """
+        return bool(self._was_empty)
+
+    @property
     def value(self):
+        """Set stashed value.
+        """
         if hasattr(self, "_value"):
             return self._value
         raise ValueError("not found")
@@ -139,13 +149,14 @@ class filepath(stashed):
 
         The file is copied and stashed as:
 
-            <os.path.basename(name)>
+            <name>
 
         :param name: name of the stashed file specified by file path
         :param id: custom stash id, default: None
         :param path: custom stash path, default: `./stash`
         """
         self.name = name
+        self._was_empty = True
 
         frame = inspect.currentframe().f_back
         frame_info = inspect.getframeinfo(frame)
@@ -164,6 +175,7 @@ class filepath(stashed):
 
         if os.path.exists(self.filename):
             self._value = self.filename
+            self._was_empty = False
 
     def __call__(self, value):
         """Stash filepath value.
@@ -171,16 +183,17 @@ class filepath(stashed):
         if hasattr(self, "_value"):
             raise ValueError("value already set")
 
-        if os.path.exists(self.filename):
-            raise FileExistsError("filename already in stash")
-
-        with open(self.filename, mode="wb") as dst:
-            with open(value, mode="rb") as src:
-                while True:
-                    data = src.read(65536)
-                    if not data:
-                        break
-                    dst.write(data)
+        if value != self.filename:
+            if os.path.exists(self.filename):
+                raise FileExistsError("filename already in stash")
+    
+            with open(self.filename, mode="wb") as dst:
+                with open(value, mode="rb") as src:
+                    while True:
+                        data = src.read(65536)
+                        if not data:
+                            break
+                        dst.write(data)
 
         self._value = self.filename
 
@@ -202,6 +215,7 @@ class namedfile(stashed):
         """
         self.name = name
         self.mode = mode
+        self._was_empty = True
 
         frame = inspect.currentframe().f_back
         frame_info = inspect.getframeinfo(frame)
@@ -220,6 +234,7 @@ class namedfile(stashed):
 
         if os.path.exists(self.filename):
             self._value = self.filename
+            self._was_empty = False
 
     def __call__(self, file_object):
         """Stash file object.
@@ -227,18 +242,19 @@ class namedfile(stashed):
         if hasattr(self, "_value"):
             raise ValueError("value already set")
 
-        if os.path.exists(self.filename):
-            raise FileExistsError("filename already in stash")
-
-        file_object.flush()
-
-        with open(self.filename, mode="wb") as dst:
-            with open(file_object.name, mode="rb") as src:
-                while True:
-                    data = src.read(65536)
-                    if not data:
-                        break
-                    dst.write(data)
+        if file_object.name != self.filename:
+            if os.path.exists(self.filename):
+                raise FileExistsError("filename already in stash")
+    
+            file_object.flush()
+    
+            with open(self.filename, mode="wb") as dst:
+                with open(file_object.name, mode="rb") as src:
+                    while True:
+                        data = src.read(65536)
+                        if not data:
+                            break
+                        dst.write(data)
 
         self._value = self.filename
 
