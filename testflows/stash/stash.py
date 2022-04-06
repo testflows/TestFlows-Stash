@@ -79,7 +79,9 @@ class stashed:
 
         pass
 
-    def __init__(self, name, id=None, output=None, path=None, encoder=None):
+    def __init__(
+        self, name, id=None, output=None, path=None, encoder=None, use_stash=True
+    ):
         """Stash value representation to a stored stash.
 
         Stash files have format:
@@ -91,13 +93,19 @@ class stashed:
         :param output: function to output the representation of the value
         :param path: custom stash path, default: `./stash`
         :param encoder: custom encoder for the value, default: json
+        :param use_stash: use stash, default: `True`
         """
         self.name = varname(name)
+        self.filename = None
         self.encoder = encoder if encoder is not None else stashed.encoder.json
         self.output = output
+        self._is_used = bool(use_stash)
         self._lock = threading.Lock()
         self._async_lock = asyncio.Lock()
         self._was_empty = True
+
+        if not self.is_used:
+            return
 
         frame = inspect.currentframe().f_back
         frame_info = inspect.getframeinfo(frame)
@@ -145,6 +153,9 @@ class stashed:
 
         self._value = value
 
+        if not self.is_used:
+            return
+
         with open(self.filename, "a") as fd:
             try:
                 repr_value = repr(self.encoder.dumps(value))
@@ -173,9 +184,14 @@ class stashed:
             await self._async_lock.release()
 
     @property
+    def is_used(self):
+        """Return True if stash is used."""
+        return self._is_used
+
+    @property
     def was_empty(self):
         """Return True if stash was empty."""
-        return bool(self._was_empty)
+        return self._was_empty
 
     @property
     def value(self):
@@ -188,7 +204,7 @@ class stashed:
 class FilePath(stashed):
     """Stashed file specified by a filepath."""
 
-    def __init__(self, name, id=None, path=None):
+    def __init__(self, name, id=None, path=None, use_stash=True):
         """Stash value that contains a path to a file.
 
         The file is copied and stashed as:
@@ -198,11 +214,17 @@ class FilePath(stashed):
         :param name: name of the stashed file specified by file path
         :param id: custom stash id, default: None
         :param path: custom stash path, default: `./stash`
+        :param use_stash: use stash, default: `True`
         """
         self.name = name
+        self.filename = None
+        self._is_used = bool(use_stash)
         self._was_empty = True
         self._lock = threading.Lock()
         self._async_lock = asyncio.Lock()
+
+        if not self.is_used:
+            return
 
         frame = inspect.currentframe().f_back
         frame_info = inspect.getframeinfo(frame)
@@ -229,6 +251,10 @@ class FilePath(stashed):
         if hasattr(self, "_value"):
             raise ValueError("value already set")
 
+        if not self.is_used:
+            self._value = value
+            return
+
         if value != self.filename:
             if os.path.exists(self.filename):
                 raise FileExistsError("filename already in stash")
@@ -247,7 +273,7 @@ class FilePath(stashed):
 class NamedFile(stashed):
     """Stashed named file."""
 
-    def __init__(self, name, mode="rb", id=None, path=None):
+    def __init__(self, name, mode="rb", id=None, path=None, use_stash=True):
         """Stash a named file object.
 
         The file is copied and stashed as:
@@ -258,12 +284,18 @@ class NamedFile(stashed):
         :param mode: file mode, default: `rb`
         :param id: custom stash id, default: None
         :param path: custom stash path, default: `./stash`
+        :param use_stash: use stash, default: `True`
         """
         self.name = name
         self.mode = mode
+        self.filename = None
+        self._is_used = bool(use_stash)
         self._was_empty = True
         self._lock = threading.Lock()
         self._async_lock = asyncio.Lock()
+
+        if not self.is_used:
+            return
 
         frame = inspect.currentframe().f_back
         frame_info = inspect.getframeinfo(frame)
@@ -290,6 +322,10 @@ class NamedFile(stashed):
         if hasattr(self, "_value"):
             raise ValueError("value already set")
 
+        if not self.is_used:
+            self._value = file_object
+            return
+
         if file_object.name != self.filename:
             if os.path.exists(self.filename):
                 raise FileExistsError("filename already in stash")
@@ -309,6 +345,8 @@ class NamedFile(stashed):
     @property
     def value(self):
         if hasattr(self, "_value"):
+            if not self.is_used:
+                return self._value
             return open(self._value, mode=self.mode)
         raise ValueError("not found")
 
