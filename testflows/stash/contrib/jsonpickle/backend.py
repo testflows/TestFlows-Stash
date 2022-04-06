@@ -38,21 +38,21 @@ class JSONBackend(object):
         # Whether we've loaded any backends successfully
         self._verified = False
 
-        self.load_backend('simplejson')
-        self.load_backend('json')
-        self.load_backend('demjson', 'encode', 'decode', 'JSONDecodeError')
-        self.load_backend('jsonlib', 'write', 'read', 'ReadError')
-        self.load_backend('yajl')
-        self.load_backend('ujson')
+        self.load_backend("simplejson")
+        self.load_backend("json")
+        self.load_backend("demjson", "encode", "decode", "JSONDecodeError")
+        self.load_backend("jsonlib", "write", "read", "ReadError")
+        self.load_backend("yajl")
+        self.load_backend("ujson")
 
         # Defaults for various encoders
         sort = not PY3_ORDERED_DICT
-        json_opts = ((), {'sort_keys': sort})
+        json_opts = ((), {"sort_keys": sort})
         self._encoder_options = {
-            'ujson': ((), {'sort_keys': sort, 'escape_forward_slashes': False}),
-            'json': json_opts,
-            'simplejson': json_opts,
-            'django.util.simplejson': json_opts,
+            "ujson": ((), {"sort_keys": sort, "escape_forward_slashes": False}),
+            "json": json_opts,
+            "simplejson": json_opts,
+            "django.util.simplejson": json_opts,
         }
 
     def _verify(self):
@@ -60,9 +60,9 @@ class JSONBackend(object):
         if self._verified:
             return
         raise AssertionError(
-            'jsonpickle requires at least one of the '
-            'following:\n'
-            '    python2.6, simplejson, or demjson'
+            "jsonpickle requires at least one of the "
+            "following:\n"
+            "    python2.6, simplejson, or demjson"
         )
 
     def enable_fallthrough(self, enable):
@@ -82,7 +82,7 @@ class JSONBackend(object):
         """
         self._fallthrough = enable
 
-    def load_backend(self, name, dumps='dumps', loads='loads', loads_exc=ValueError):
+    def load_backend(self, name, dumps="dumps", loads="loads", loads_exc=ValueError):
 
         """Load a JSON backend by name.
 
@@ -112,7 +112,7 @@ class JSONBackend(object):
 
         # Handle submodules, e.g. django.utils.simplejson
         try:
-            for attr in name.split('.')[1:]:
+            for attr in name.split(".")[1:]:
                 mod = getattr(mod, attr)
         except AttributeError:
             return False
@@ -182,9 +182,9 @@ class JSONBackend(object):
         optargs, optkwargs = self._encoder_options.get(name, ([], {}))
         encoder_kwargs = optkwargs.copy()
         if indent is not None:
-            encoder_kwargs['indent'] = indent
+            encoder_kwargs["indent"] = indent
         if separators is not None:
-            encoder_kwargs['separators'] = separators
+            encoder_kwargs["separators"] = separators
         encoder_args = (obj,) + tuple(optargs)
         return self._encoders[name](*encoder_args, **encoder_kwargs)
 

@@ -13,31 +13,31 @@ from ..util import b64decode, b64encode
 from .. import compat
 
 
-__all__ = ['register_handlers', 'unregister_handlers']
+__all__ = ["register_handlers", "unregister_handlers"]
 
-native_byteorder = '<' if sys.byteorder == 'little' else '>'
+native_byteorder = "<" if sys.byteorder == "little" else ">"
 
 
 def get_byteorder(arr):
     """translate equals sign to native order"""
     byteorder = arr.dtype.byteorder
-    return native_byteorder if byteorder == '=' else byteorder
+    return native_byteorder if byteorder == "=" else byteorder
 
 
 class NumpyBaseHandler(BaseHandler):
     def flatten_dtype(self, dtype, data):
-        if hasattr(dtype, 'tostring'):
-            data['dtype'] = dtype.tostring()
+        if hasattr(dtype, "tostring"):
+            data["dtype"] = dtype.tostring()
         else:
             dtype = compat.ustr(dtype)
-            prefix = '(numpy.record, '
+            prefix = "(numpy.record, "
             if dtype.startswith(prefix):
                 dtype = dtype[len(prefix) : -1]
-            data['dtype'] = dtype
+            data["dtype"] = dtype
 
     def restore_dtype(self, data):
-        dtype = data['dtype']
-        if dtype.startswith(('{', '[')):
+        dtype = data["dtype"]
+        if dtype.startswith(("{", "[")):
             dtype = ast.literal_eval(dtype)
         return np.dtype(dtype)
 
@@ -53,12 +53,12 @@ class NumpyDTypeHandler(NumpyBaseHandler):
 
 class NumpyGenericHandler(NumpyBaseHandler):
     def flatten(self, obj, data):
-        self.flatten_dtype(obj.dtype.newbyteorder('N'), data)
-        data['value'] = self.context.flatten(obj.tolist(), reset=False)
+        self.flatten_dtype(obj.dtype.newbyteorder("N"), data)
+        data["value"] = self.context.flatten(obj.tolist(), reset=False)
         return data
 
     def restore(self, data):
-        value = self.context.restore(data['value'], reset=False)
+        value = self.context.restore(data["value"], reset=False)
         return self.restore_dtype(data).type(value)
 
 
@@ -67,28 +67,28 @@ class NumpyNDArrayHandler(NumpyBaseHandler):
 
     def flatten_flags(self, obj, data):
         if obj.flags.writeable is False:
-            data['writeable'] = False
+            data["writeable"] = False
 
     def restore_flags(self, data, arr):
-        if not data.get('writeable', True):
+        if not data.get("writeable", True):
             arr.flags.writeable = False
 
     def flatten(self, obj, data):
-        self.flatten_dtype(obj.dtype.newbyteorder('N'), data)
+        self.flatten_dtype(obj.dtype.newbyteorder("N"), data)
         self.flatten_flags(obj, data)
-        data['values'] = self.context.flatten(obj.tolist(), reset=False)
+        data["values"] = self.context.flatten(obj.tolist(), reset=False)
         if 0 in obj.shape:
             # add shape information explicitly as it cannot be
             # inferred from an empty list
-            data['shape'] = obj.shape
+            data["shape"] = obj.shape
         return data
 
     def restore(self, data):
-        values = self.context.restore(data['values'], reset=False)
+        values = self.context.restore(data["values"], reset=False)
         arr = np.array(
-            values, dtype=self.restore_dtype(data), order=data.get('order', 'C')
+            values, dtype=self.restore_dtype(data), order=data.get("order", "C")
         )
-        shape = data.get('shape', None)
+        shape = data.get("shape", None)
         if shape is not None:
             arr = arr.reshape(shape)
 
@@ -121,11 +121,11 @@ class NumpyNDArrayHandlerBinary(NumpyNDArrayHandler):
 
     def flatten_byteorder(self, obj, data):
         byteorder = obj.dtype.byteorder
-        if byteorder != '|':
-            data['byteorder'] = get_byteorder(obj)
+        if byteorder != "|":
+            data["byteorder"] = get_byteorder(obj)
 
     def restore_byteorder(self, data, arr):
-        byteorder = data.get('byteorder', None)
+        byteorder = data.get("byteorder", None)
         if byteorder:
             arr.dtype = arr.dtype.newbyteorder(byteorder)
 
@@ -151,29 +151,29 @@ class NumpyNDArrayHandlerBinary(NumpyNDArrayHandler):
                 #                      shape=shape).copy()
                 # So, save as a binary-encoded list in this case
                 buf = json.dumps(obj.tolist()).encode()
-            elif hasattr(obj, 'tobytes'):
+            elif hasattr(obj, "tobytes"):
                 # numpy docstring is lacking as of 1.11.2,
                 # but this is the option we need
-                buf = obj.tobytes(order='a')
+                buf = obj.tobytes(order="a")
             else:
                 # numpy < 1.9 compatibility
-                buf = obj.tostring(order='a')
+                buf = obj.tostring(order="a")
             if self.compression:
                 buf = self.compression.compress(buf)
-            data['values'] = b64encode(buf)
-            data['shape'] = obj.shape
-            self.flatten_dtype(obj.dtype.newbyteorder('N'), data)
+            data["values"] = b64encode(buf)
+            data["shape"] = obj.shape
+            self.flatten_dtype(obj.dtype.newbyteorder("N"), data)
             self.flatten_byteorder(obj, data)
             self.flatten_flags(obj, data)
 
             if not obj.flags.c_contiguous:
-                data['order'] = 'F'
+                data["order"] = "F"
 
         return data
 
     def restore(self, data):
         """decode numpy from json"""
-        values = data['values']
+        values = data["values"]
         if isinstance(values, list):
             # decode text representation
             arr = super(NumpyNDArrayHandlerBinary, self).restore(data)
@@ -190,16 +190,16 @@ class NumpyNDArrayHandlerBinary(NumpyNDArrayHandler):
             # are saved as a list to work around that.
             if dtype == np.object:
                 values = json.loads(buf.decode())
-                arr = np.array(values, dtype=dtype, order=data.get('order', 'C'))
-                shape = data.get('shape', None)
+                arr = np.array(values, dtype=dtype, order=data.get("order", "C"))
+                shape = data.get("shape", None)
                 if shape is not None:
                     arr = arr.reshape(shape)
             else:
                 arr = np.ndarray(
                     buffer=buf,
                     dtype=dtype,
-                    shape=data.get('shape'),
-                    order=data.get('order', 'C'),
+                    shape=data.get("shape"),
+                    order=data.get("order", "C"),
                 ).copy()  # make a copy, to force the result to own the data
                 self.restore_byteorder(data, arr)
             self.restore_flags(data, arr)
@@ -229,7 +229,7 @@ class NumpyNDArrayHandlerView(NumpyNDArrayHandlerBinary):
     implement is correctly reproduced.
     """
 
-    def __init__(self, mode='warn', size_threshold=16, compression=zlib):
+    def __init__(self, mode="warn", size_threshold=16, compression=zlib):
         """
         :param mode: {'warn', 'raise', 'ignore'}
             How to react when encountering array-like objects whos
@@ -254,26 +254,26 @@ class NumpyNDArrayHandlerView(NumpyNDArrayHandlerBinary):
             # ensure that views on arrays stored as text
             # are interpreted correctly
             if not obj.flags.c_contiguous:
-                data['order'] = 'F'
+                data["order"] = "F"
         elif isinstance(base, np.ndarray) and base.flags.forc:
             # store by reference
-            data['base'] = self.context.flatten(base, reset=False)
+            data["base"] = self.context.flatten(base, reset=False)
 
             offset = obj.ctypes.data - base.ctypes.data
             if offset:
-                data['offset'] = offset
+                data["offset"] = offset
 
             if not obj.flags.c_contiguous:
-                data['strides'] = obj.strides
+                data["strides"] = obj.strides
 
-            data['shape'] = obj.shape
-            self.flatten_dtype(obj.dtype.newbyteorder('N'), data)
+            data["shape"] = obj.shape
+            self.flatten_dtype(obj.dtype.newbyteorder("N"), data)
             self.flatten_flags(obj, data)
 
-            if get_byteorder(obj) != '|':
-                byteorder = 'S' if get_byteorder(obj) != get_byteorder(base) else None
+            if get_byteorder(obj) != "|":
+                byteorder = "S" if get_byteorder(obj) != get_byteorder(base) else None
                 if byteorder:
-                    data['byteorder'] = byteorder
+                    data["byteorder"] = byteorder
 
             if self.size_threshold is None or self.size_threshold >= obj.size:
                 # not used in restore since base is present, but
@@ -281,7 +281,7 @@ class NumpyNDArrayHandlerView(NumpyNDArrayHandlerBinary):
                 super(NumpyNDArrayHandlerBinary, self).flatten(obj, data)
         else:
             # store a deepcopy or fail
-            if self.mode == 'warn':
+            if self.mode == "warn":
                 msg = (
                     "ndarray is defined by reference to an object "
                     "we do not know how to serialize. "
@@ -289,7 +289,7 @@ class NumpyNDArrayHandlerView(NumpyNDArrayHandlerBinary):
                     "memory aliasing."
                 )
                 warnings.warn(msg)
-            elif self.mode == 'raise':
+            elif self.mode == "raise":
                 msg = (
                     "ndarray is defined by reference to an object we do "
                     "not know how to serialize."
@@ -301,7 +301,7 @@ class NumpyNDArrayHandlerView(NumpyNDArrayHandlerBinary):
 
     def restore(self, data):
         """decode numpy from json"""
-        base = data.get('base', None)
+        base = data.get("base", None)
         if base is None:
             # decode array with owndata=True
             arr = super(NumpyNDArrayHandlerView, self).restore(data)
@@ -314,10 +314,10 @@ class NumpyNDArrayHandlerView(NumpyNDArrayHandlerBinary):
 
             arr = np.ndarray(
                 buffer=base.data,
-                dtype=self.restore_dtype(data).newbyteorder(data.get('byteorder', '|')),
-                shape=data.get('shape'),
-                offset=data.get('offset', 0),
-                strides=data.get('strides', None),
+                dtype=self.restore_dtype(data).newbyteorder(data.get("byteorder", "|")),
+                shape=data.get("shape"),
+                offset=data.get("offset", 0),
+                strides=data.get("strides", None),
             )
 
             self.restore_flags(data, arr)

@@ -382,7 +382,7 @@ class Pickler(object):
     def _flatten_bytestring(self, obj):
         if PY2:
             try:
-                return obj.decode('utf-8')
+                return obj.decode("utf-8")
             except UnicodeDecodeError:
                 pass
         return {self._bytes_tag: self._bytes_encoder(obj)}
@@ -390,17 +390,17 @@ class Pickler(object):
     def _flatten_obj_instance(self, obj):
         """Recursively flatten an instance and return a json-friendly dict"""
         data = {}
-        has_class = hasattr(obj, '__class__')
-        has_dict = hasattr(obj, '__dict__')
-        has_slots = not has_dict and hasattr(obj, '__slots__')
-        has_getnewargs = util.has_method(obj, '__getnewargs__')
-        has_getnewargs_ex = util.has_method(obj, '__getnewargs_ex__')
-        has_getinitargs = util.has_method(obj, '__getinitargs__')
+        has_class = hasattr(obj, "__class__")
+        has_dict = hasattr(obj, "__dict__")
+        has_slots = not has_dict and hasattr(obj, "__slots__")
+        has_getnewargs = util.has_method(obj, "__getnewargs__")
+        has_getnewargs_ex = util.has_method(obj, "__getnewargs_ex__")
+        has_getinitargs = util.has_method(obj, "__getinitargs__")
         has_reduce, has_reduce_ex = util.has_reduce(obj)
 
         # Support objects with __getstate__(); this ensures that
         # both __setstate__() and __getstate__() are implemented
-        has_getstate = hasattr(obj, '__getstate__')
+        has_getstate = hasattr(obj, "__getstate__")
         # not using has_method since __getstate__() is handled separately below
 
         if has_class:
@@ -442,7 +442,7 @@ class Pickler(object):
 
             if reduce_val and isinstance(reduce_val, string_types):
                 try:
-                    varpath = iter(reduce_val.split('.'))
+                    varpath = iter(reduce_val.split("."))
                     # curmod will be transformed by the
                     # loop into the value to pickle
                     curmod = sys.modules[next(varpath)]
@@ -462,7 +462,7 @@ class Pickler(object):
                 if insufficiency:
                     rv_as_list += [None] * insufficiency
 
-                if getattr(rv_as_list[0], '__name__', '') == '__newobj__':
+                if getattr(rv_as_list[0], "__name__", "") == "__newobj__":
                     rv_as_list[0] = tags.NEWOBJ
 
                 f, args, state, listitems, dictitems = rv_as_list
@@ -470,8 +470,8 @@ class Pickler(object):
                 # check that getstate/setstate is sane
                 if not (
                     state
-                    and hasattr(obj, '__getstate__')
-                    and not hasattr(obj, '__setstate__')
+                    and hasattr(obj, "__getstate__")
+                    and not hasattr(obj, "__setstate__")
                     and not isinstance(obj, dict)
                 ):
                     # turn iterators to iterables for convenient serialization
@@ -515,7 +515,7 @@ class Pickler(object):
 
         if util.is_module(obj):
             if self.unpicklable:
-                data[tags.REPR] = '{name}/{name}'.format(name=obj.__name__)
+                data[tags.REPR] = "{name}/{name}".format(name=obj.__name__)
             else:
                 data = compat.ustr(obj)
             return data
@@ -538,7 +538,7 @@ class Pickler(object):
                 return self._flatten_sequence_obj(obj, data)
 
             # hack for zope persistent objects; this unghostifies the object
-            getattr(obj, '_', None)
+            getattr(obj, "_", None)
             return self._flatten_dict_obj(obj.__dict__, data)
 
         if has_slots:
@@ -584,7 +584,7 @@ class Pickler(object):
                 flatten(k, v, data)
 
         # the collections.defaultdict protocol
-        if hasattr(obj, 'default_factory') and callable(obj.default_factory):
+        if hasattr(obj, "default_factory") and callable(obj.default_factory):
             factory = obj.default_factory
             if util.is_type(factory):
                 # Reference the class/type
@@ -601,13 +601,13 @@ class Pickler(object):
                     # We've seen this object before.
                     # Break the cycle by emitting a reference.
                     value = self._getref(factory)
-            data['default_factory'] = value
+            data["default_factory"] = value
 
         # Sub-classes of dict
-        if hasattr(obj, '__dict__') and self.unpicklable:
+        if hasattr(obj, "__dict__") and self.unpicklable:
             dict_data = {}
             self._flatten_dict_obj(obj.__dict__, dict_data)
-            data['__dict__'] = dict_data
+            data["__dict__"] = dict_data
 
         return data
 
@@ -627,13 +627,13 @@ class Pickler(object):
     def _flatten_newstyle_with_slots(self, obj, data):
         """Return a json-friendly dict for new-style objects with __slots__."""
         allslots = [
-            _wrap_string_slot(getattr(cls, '__slots__', tuple()))
+            _wrap_string_slot(getattr(cls, "__slots__", tuple()))
             for cls in obj.__class__.mro()
         ]
 
         if not self._flatten_obj_attrs(obj, chain(*allslots), data):
             attrs = [
-                x for x in dir(obj) if not x.startswith('__') and not x.endswith('__')
+                x for x in dir(obj) if not x.startswith("__") and not x.endswith("__")
             ]
             self._flatten_obj_attrs(obj, attrs, data)
 
@@ -645,7 +645,7 @@ class Pickler(object):
             return data
 
         if k is None:
-            k = 'null'  # for compatibility with common json encoders
+            k = "null"  # for compatibility with common json encoders
 
         if self.numeric_keys and isinstance(k, numeric_types):
             pass
@@ -678,7 +678,7 @@ class Pickler(object):
                 k = self._escape_key(k)
         else:
             if k is None:
-                k = 'null'  # for compatibility with common json encoders
+                k = "null"  # for compatibility with common json encoders
 
             if self.numeric_keys and isinstance(k, numeric_types):
                 pass
@@ -693,7 +693,7 @@ class Pickler(object):
 
     def _flatten_sequence_obj(self, obj, data):
         """Return a json-friendly dict for a sequence subclass."""
-        if hasattr(obj, '__dict__'):
+        if hasattr(obj, "__dict__"):
             self._flatten_dict_obj(obj.__dict__, data)
         value = [self._flatten(v) for v in obj]
         if self.unpicklable:
@@ -722,7 +722,7 @@ class Pickler(object):
 
     def _pickle_warning(self, obj):
         if self.warn:
-            msg = 'jsonpickle cannot pickle %r: replaced with None' % obj
+            msg = "jsonpickle cannot pickle %r: replaced with None" % obj
             warnings.warn(msg)
 
 

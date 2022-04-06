@@ -111,7 +111,7 @@ def has_method(obj, name):
         return True
 
     # at this point, the method has to be an instancemthod or a classmethod
-    self_attr = '__self__' if PY3 else 'im_self'
+    self_attr = "__self__" if PY3 else "im_self"
     if not hasattr(func, self_attr):
         return False
     bound_to = getattr(func, self_attr)
@@ -156,7 +156,7 @@ def is_primitive(obj):
 
 def is_enum(obj):
     """Is the object an enum?"""
-    return 'enum' in sys.modules and isinstance(obj, sys.modules['enum'].Enum)
+    return "enum" in sys.modules and isinstance(obj, sys.modules["enum"].Enum)
 
 
 def is_dictionary(obj):
@@ -230,7 +230,7 @@ def is_dictionary_subclass(obj):
     """
     # TODO: add UserDict
     return (
-        hasattr(obj, '__class__')
+        hasattr(obj, "__class__")
         and issubclass(obj.__class__, dict)
         and type(obj) is not dict
     )
@@ -247,7 +247,7 @@ def is_sequence_subclass(obj):
     True
     """
     return (
-        hasattr(obj, '__class__')
+        hasattr(obj, "__class__")
         and (issubclass(obj.__class__, SEQUENCES) or is_list_like(obj))
         and not is_sequence(obj)
     )
@@ -296,11 +296,11 @@ def is_module_function(obj):
     """
 
     return (
-        hasattr(obj, '__class__')
+        hasattr(obj, "__class__")
         and isinstance(obj, (types.FunctionType, types.BuiltinFunctionType))
-        and hasattr(obj, '__module__')
-        and hasattr(obj, '__name__')
-        and obj.__name__ != '<lambda>'
+        and hasattr(obj, "__module__")
+        and hasattr(obj, "__name__")
+        and obj.__name__ != "<lambda>"
     )
 
 
@@ -352,7 +352,7 @@ def is_installed(module):
 
 
 def is_list_like(obj):
-    return hasattr(obj, '__getitem__') and hasattr(obj, 'append')
+    return hasattr(obj, "__getitem__") and hasattr(obj, "append")
 
 
 def is_iterator(obj):
@@ -364,13 +364,13 @@ def is_iterator(obj):
 
 def is_collections(obj):
     try:
-        return type(obj).__module__ == 'collections'
+        return type(obj).__module__ == "collections"
     except Exception:
         return False
 
 
 def is_reducible_sequence_subclass(obj):
-    return hasattr(obj, '__class__') and issubclass(obj.__class__, SEQUENCES)
+    return hasattr(obj, "__class__") and issubclass(obj.__class__, SEQUENCES)
 
 
 def is_reducible(obj):
@@ -394,9 +394,9 @@ def is_reducible(obj):
         return False
     elif is_reducible_sequence_subclass(obj):
         return False
-    elif isinstance(getattr(obj, '__slots__', None), iterator_types):
+    elif isinstance(getattr(obj, "__slots__", None), iterator_types):
         return False
-    elif is_type(obj) and obj.__module__ == 'datetime':
+    elif is_type(obj) and obj.__module__ == "datetime":
         return False
     return True
 
@@ -406,7 +406,7 @@ def in_dict(obj, key, default=False):
     Returns true if key exists in obj.__dict__; false if not in.
     If obj.__dict__ is absent, return default
     """
-    return (key in obj.__dict__) if getattr(obj, '__dict__', None) else default
+    return (key in obj.__dict__) if getattr(obj, "__dict__", None) else default
 
 
 def in_slots(obj, key, default=False):
@@ -414,7 +414,7 @@ def in_slots(obj, key, default=False):
     Returns true if key exists in obj.__slots__; false if not in.
     If obj.__slots__ is absent, return default
     """
-    return (key in obj.__slots__) if getattr(obj, '__slots__', None) else default
+    return (key in obj.__slots__) if getattr(obj, "__slots__", None) else default
 
 
 def has_reduce(obj):
@@ -437,8 +437,8 @@ def has_reduce(obj):
     has_reduce = False
     has_reduce_ex = False
 
-    REDUCE = '__reduce__'
-    REDUCE_EX = '__reduce_ex__'
+    REDUCE = "__reduce__"
+    REDUCE_EX = "__reduce_ex__"
 
     # For object instance
     has_reduce = in_dict(obj, REDUCE) or in_slots(obj, REDUCE)
@@ -485,7 +485,7 @@ def translate_module_name(module):
 
     See untranslate_module_name() for the reverse operation.
     """
-    lookup = dict(__builtin__='builtins', exceptions='builtins')
+    lookup = dict(__builtin__="builtins", exceptions="builtins")
     return lookup.get(module, module)
 
 
@@ -497,7 +497,7 @@ def untranslate_module_name(module):
 
     """
     module = _0_9_6_compat_untranslate(module)
-    lookup = dict(builtins='__builtin__') if PY2 else {}
+    lookup = dict(builtins="__builtin__") if PY2 else {}
     return lookup.get(module, module)
 
 
@@ -505,7 +505,7 @@ def _0_9_6_compat_untranslate(module):
     """Provide compatibility for pickles created with jsonpickle 0.9.6 and
     earlier, remapping `exceptions` and `__builtin__` to `builtins`.
     """
-    lookup = dict(__builtin__='builtins', exceptions='builtins')
+    lookup = dict(__builtin__="builtins", exceptions="builtins")
     return lookup.get(module, module)
 
 
@@ -528,16 +528,16 @@ def importable_name(cls):
 
     """
     # Use the fully-qualified name if available (Python >= 3.3)
-    name = getattr(cls, '__qualname__', cls.__name__)
+    name = getattr(cls, "__qualname__", cls.__name__)
     module = translate_module_name(cls.__module__)
-    return '{}.{}'.format(module, name)
+    return "{}.{}".format(module, name)
 
 
 def b64encode(data):
     """
     Encode binary data to ascii text in base64. Data must be bytes.
     """
-    return base64.b64encode(data).decode('ascii')
+    return base64.b64encode(data).decode("ascii")
 
 
 def b64decode(payload):
@@ -553,7 +553,7 @@ def b85encode(data):
     """
     if PY2:
         raise NotImplementedError("Python 2 can't encode data in base85.")
-    return base64.b85encode(data).decode('ascii')
+    return base64.b85encode(data).decode("ascii")
 
 
 def b85decode(payload):

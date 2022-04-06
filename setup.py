@@ -32,18 +32,13 @@ setup(
         "License :: OSI Approved :: Apache Software License",
         "Operating System :: POSIX :: Linux",
     ],
-    python_requires='>=3.6',
+    python_requires=">=3.6",
     license="Apache-2.0",
     packages=[
         "testflows.stash",
         "testflows.stash.contrib.jsonpickle",
     ],
     zip_safe=False,
-    install_requires=[
-    ],
-    extras_require={
-        "dev": [
-            "testflows.core>=1.7"
-        ]
-    }
+    install_requires=[],
+    extras_require={"dev": ["testflows.core>=1.7"]},
 )

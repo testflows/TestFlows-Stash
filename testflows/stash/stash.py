@@ -18,8 +18,10 @@ import sys
 import json
 import pickle
 import marshal
+import asyncio
 import inspect
 import hashlib
+import threading
 
 import testflows.stash.contrib.jsonpickle as jsonpickle
 
@@ -29,39 +31,35 @@ __all__ = ["stashed"]
 
 
 def varname(s):
-    """Make valid Python variable name.
-    """
+    """Make valid Python variable name."""
     invalid_chars = re.compile("[^0-9a-zA-Z_]")
     invalid_start_chars = re.compile("^[^a-zA-Z_]+")
 
-    name = invalid_chars.sub('_', str(s))
-    name = invalid_start_chars.sub('', name)
+    name = invalid_chars.sub("_", str(s))
+    name = invalid_start_chars.sub("", name)
     if not name:
         raise ValueError(f"can't convert to valid name '{s}'")
     return name
 
 
 def make_filename(name):
-    """Make valid file name.
-    """
+    """Make valid file name."""
     return "".join(l for l in name if (l.isalnum() or l in "._- ") and l not in "/")
 
 
 class Hash:
-    """Class that provides hashing for any object that is pickle-able.
-    """
+    """Class that provides hashing for any object that is pickle-able."""
+
     def __init__(self, encoder=pickle):
         self._encoder = encoder
 
     @staticmethod
     def encoder(encoder):
-        """Return hash object with custom encoder.
-        """
+        """Return hash object with custom encoder."""
         return Hash(encoder=encoder)
 
     def __call__(self, *args, **kwargs):
-        """Return hash for anything that is pickle-able.
-        """
+        """Return hash for anything that is pickle-able."""
         return hashlib.sha1(self._encoder.dumps([args, kwargs])).hexdigest()
 
 
@@ -69,19 +67,19 @@ class StashValueFound(Exception):
     """Exception when stashed value
     was not found in stash.
     """
+
     pass
 
 
 class stashed:
-    """Context manager for stashed values.
-    """
+    """Context manager for stashed values."""
+
     class encoder:
-        """Available encoders.
-        """
+        """Available encoders."""
+
         pass
 
-    def __init__(self, name, id=None, output=None, path=None,
-            encoder=None):
+    def __init__(self, name, id=None, output=None, path=None, encoder=None):
         """Stash value representation to a stored stash.
 
         Stash files have format:
@@ -97,6 +95,8 @@ class stashed:
         self.name = varname(name)
         self.encoder = encoder if encoder is not None else stashed.encoder.json
         self.output = output
+        self._lock = threading.Lock()
+        self._async_lock = asyncio.Lock()
         self._was_empty = True
 
         frame = inspect.currentframe().f_back
@@ -125,16 +125,21 @@ class stashed:
         sys.settrace(self._trace)
         raise StashValueFound()
 
-    def __enter__(self):
+    def __enter__(self, use_lock=True):
+        if use_lock:
+            self._lock.acquire()
         if hasattr(self, "_value"):
             self._trace = sys.gettrace()
             sys.settrace(self.__skip__)
 
         return self
 
+    async def __aenter__(self):
+        await self._async_lock.acquire()
+        return self.__enter__(use_lock=False)
+
     def __call__(self, value):
-        """Stash value representation.
-        """
+        """Stash value representation."""
         if hasattr(self, "_value"):
             raise ValueError("value already set")
 
@@ -151,30 +156,38 @@ class stashed:
 
             fd.write(f"""{self.name} = {repr_value}\n\n""")
 
-    def __exit__(self, exc_type, exc_value, exc_tb):
-        if exc_value is not None:
-            if isinstance(exc_value, StashValueFound):
-                return True
-            return False
+    def __exit__(self, exc_type, exc_value, exc_tb, use_lock=True):
+        try:
+            if exc_value is not None:
+                if isinstance(exc_value, StashValueFound):
+                    return True
+                return False
+        finally:
+            if use_lock:
+                self._lock.release()
+
+    async def __aexit__(self, exc_type, exc_value, exc_tb):
+        try:
+            return self.__exit__(exc_type, exc_value, exc_tb, use_lock=False)
+        finally:
+            await self._async_lock.release()
 
     @property
     def was_empty(self):
-        """Return True if stash was empty.
-        """
+        """Return True if stash was empty."""
         return bool(self._was_empty)
 
     @property
     def value(self):
-        """Set stashed value.
-        """
+        """Set stashed value."""
         if hasattr(self, "_value"):
             return self._value
         raise ValueError("not found")
 
 
 class FilePath(stashed):
-    """Stashed file specified by a filepath.
-    """
+    """Stashed file specified by a filepath."""
+
     def __init__(self, name, id=None, path=None):
         """Stash value that contains a path to a file.
 
@@ -188,6 +201,8 @@ class FilePath(stashed):
         """
         self.name = name
         self._was_empty = True
+        self._lock = threading.Lock()
+        self._async_lock = asyncio.Lock()
 
         frame = inspect.currentframe().f_back
         frame_info = inspect.getframeinfo(frame)
@@ -210,8 +225,7 @@ class FilePath(stashed):
             self._was_empty = False
 
     def __call__(self, value):
-        """Stash filepath value.
-        """
+        """Stash filepath value."""
         if hasattr(self, "_value"):
             raise ValueError("value already set")
 
@@ -231,8 +245,8 @@ class FilePath(stashed):
 
 
 class NamedFile(stashed):
-    """Stashed named file.
-    """
+    """Stashed named file."""
+
     def __init__(self, name, mode="rb", id=None, path=None):
         """Stash a named file object.
 
@@ -248,6 +262,8 @@ class NamedFile(stashed):
         self.name = name
         self.mode = mode
         self._was_empty = True
+        self._lock = threading.Lock()
+        self._async_lock = asyncio.Lock()
 
         frame = inspect.currentframe().f_back
         frame_info = inspect.getframeinfo(frame)
@@ -270,8 +286,7 @@ class NamedFile(stashed):
             self._was_empty = False
 
     def __call__(self, file_object):
-        """Stash file object.
-        """
+        """Stash file object."""
         if hasattr(self, "_value"):
             raise ValueError("value already set")
 

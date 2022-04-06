@@ -67,10 +67,10 @@ from .handlers import unregister  # noqa: F401
 from .pickler import Pickler  # noqa: F401
 from .unpickler import Unpickler  # noqa: F401
 
-__all__ = ('encode', 'decode')
+__all__ = ("encode", "decode")
 
 # register built-in handlers
-__import__('testflows.stash.contrib.jsonpickle.handlers', level=0)
+__import__("testflows.stash.contrib.jsonpickle.handlers", level=0)
 
 # Export specific JSONPluginMgr methods into the jsonpickle namespace
 set_preferred_backend = json.set_preferred_backend

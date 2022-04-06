@@ -10,9 +10,9 @@ except (ImportError, OSError):
 
 
 def _get_version():
-    default_version = '0.0.0-alpha'
+    default_version = "0.0.0-alpha"
     try:
-        version = metadata.version('jsonpickle')
+        version = metadata.version("jsonpickle")
     except (AttributeError, ImportError, OSError):
         version = default_version
     return version

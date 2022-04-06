@@ -28,19 +28,21 @@ class SimpleClass:
 
 
 @TestOutline
-@Examples("name value", [
-    ("str", "hello there", Name("str")),
-    ("int", 1234, Name("int")),
-    ("float", 12345.3234234, Name("float")),
-    ("dict", {"a": "b"}, Name("dict")),
-    ("list", [1, "a", 3.3], Name("list")),
-    ("tuple", (-1, "hello", {"a": 1}), Name("tuple")),
-    ("class", SimpleClass, Name("class")),
-    ("object", SimpleClass(), Name("object"))
-])
+@Examples(
+    "name value",
+    [
+        ("str", "hello there", Name("str")),
+        ("int", 1234, Name("int")),
+        ("float", 12345.3234234, Name("float")),
+        ("dict", {"a": "b"}, Name("dict")),
+        ("list", [1, "a", 3.3], Name("list")),
+        ("tuple", (-1, "hello", {"a": 1}), Name("tuple")),
+        ("class", SimpleClass, Name("class")),
+        ("object", SimpleClass(), Name("object")),
+    ],
+)
 def check_value(self, name, value, encoder=None):
-    """Check stashing some value.
-    """
+    """Check stashing some value."""
     if encoder is None:
         encoder = self.context.encoder
 
@@ -63,8 +65,7 @@ def check_empty_with_clause(self):
 
 @TestScenario
 def check_filepath(self):
-    """Check stashing a value that contains a path to a file.
-    """
+    """Check stashing a value that contains a path to a file."""
     with stashed.filepath("my_file.txt") as stash:
         note("creating new file")
         with open("my_file.txt", mode="w") as fd:
@@ -82,8 +83,7 @@ def check_filepath(self):
 
 @TestScenario
 def check_namedfile(self):
-    """Check stashing a named file object.
-    """
+    """Check stashing a named file object."""
     with stashed.namedfile("my_namedfile.txt") as stash:
         note("creating new file")
         with open("my_file.txt", mode="w") as fd:
@@ -100,50 +100,52 @@ def check_namedfile(self):
 
 
 @TestOutline(Scenario)
-@Examples("encoder", [
-    (stashed.encoder.json, Name("json")),
-    (stashed.encoder.marshal, Name("marshal")),
-    (stashed.encoder.pickle, Name("pickle")),
-    (stashed.encoder.jsonpickle, Name("jsonpickle"))
-])
+@Examples(
+    "encoder",
+    [
+        (stashed.encoder.json, Name("json")),
+        (stashed.encoder.marshal, Name("marshal")),
+        (stashed.encoder.pickle, Name("pickle")),
+        (stashed.encoder.jsonpickle, Name("jsonpickle")),
+    ],
+)
 def check_values(self, encoder):
-    """Check stashing values using different encoders.
-    """
+    """Check stashing values using different encoders."""
     self.context.encoder = encoder
     Scenario(run=check_value)
 
 
 @TestScenario
 def check_using_hash(self):
-    """Check using stashed.hash to get a unique stash name.
-    """
-    with stashed(stashed.hash([1,2,3])) as stash:
+    """Check using stashed.hash to get a unique stash name."""
+    with stashed(stashed.hash([1, 2, 3])) as stash:
         stash("hello there")
 
     value1 = stash.value
 
-    with stashed(stashed.hash([1,2,3])) as stash2:
+    with stashed(stashed.hash([1, 2, 3])) as stash2:
         stash2("hello there2")
 
     assert value1 == stash2.value, error()
 
-    with stashed(stashed.hash([3,2,3])) as stash3:
+    with stashed(stashed.hash([3, 2, 3])) as stash3:
         stash3("hello there2")
 
     assert stash3.value == "hello there2", error()
 
 
 @TestModule
-@XFlags({
-    "check values/json/check value/tuple": (SKIP, None),
-    "check values/json/check value/class": (SKIP, None),
-    "check values/json/check value/object": (SKIP, None),
-    "check values/marshal/check value/class": (SKIP, None),
-    "check values/marshal/check value/object": (SKIP, None)
-})
+@XFlags(
+    {
+        "check values/json/check value/tuple": (SKIP, None),
+        "check values/json/check value/class": (SKIP, None),
+        "check values/json/check value/object": (SKIP, None),
+        "check values/marshal/check value/class": (SKIP, None),
+        "check values/marshal/check value/object": (SKIP, None),
+    }
+)
 def regression(self):
-    """TestFlows - Stash regression suite.
-    """
+    """TestFlows - Stash regression suite."""
     for scenario in loads(current_module(), Scenario):
         scenario()
 
