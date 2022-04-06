@@ -21,6 +21,7 @@ import marshal
 import asyncio
 import inspect
 import hashlib
+import weakref
 import threading
 
 import testflows.stash.contrib.jsonpickle as jsonpickle
@@ -28,6 +29,28 @@ import testflows.stash.contrib.jsonpickle as jsonpickle
 from importlib.machinery import SourceFileLoader
 
 __all__ = ["stashed"]
+
+
+class StashRegistry:
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.book = weakref.WeakValueDictionary()
+
+    def __enter__(self):
+        self.lock.acquire()
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_tb):
+        self.lock.release()
+
+
+class StashLock:
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.async_lock = asyncio.Lock()
+
+
+stash_registry = StashRegistry()
 
 
 def varname(s):
@@ -99,13 +122,10 @@ class stashed:
         self.filename = None
         self.encoder = encoder if encoder is not None else stashed.encoder.json
         self.output = output
+        self.path = path
+        self._open = False
         self._is_used = bool(use_stash)
-        self._lock = threading.Lock()
-        self._async_lock = asyncio.Lock()
         self._was_empty = True
-
-        if not self.is_used:
-            return
 
         frame = inspect.currentframe().f_back
         frame_info = inspect.getframeinfo(frame)
@@ -115,13 +135,22 @@ class stashed:
             filename += "." + str(id).lower()
         filename += ".stash"
 
-        if path is None:
-            path = os.path.join(os.path.dirname(frame_info.filename), "stash")
+        if self.path is None:
+            self.path = os.path.join(os.path.dirname(frame_info.filename), "stash")
 
-        self.filename = os.path.join(path, filename)
+        self.filename = os.path.join(self.path, filename)
 
-        if not os.path.exists(path):
-            os.makedirs(path)
+        with stash_registry:
+            key = (self.filename, self.name)
+            if not key in stash_registry.book:
+                lock = StashLock()
+                stash_registry.book[key] = lock
+            self._lock = stash_registry.book[key]
+
+    def _check_stash(self):
+        """Check stash."""
+        if not os.path.exists(self.path):
+            os.makedirs(self.path)
 
         if os.path.exists(self.filename):
             stash_module = SourceFileLoader("stash", self.filename).load_module()
@@ -134,8 +163,12 @@ class stashed:
         raise StashValueFound()
 
     def __enter__(self, use_lock=True):
+        self._open = True
         if use_lock:
-            self._lock.acquire()
+            self._lock.lock.acquire()
+
+        self._check_stash()
+
         if hasattr(self, "_value"):
             self._trace = sys.gettrace()
             sys.settrace(self.__skip__)
@@ -143,11 +176,14 @@ class stashed:
         return self
 
     async def __aenter__(self):
-        await self._async_lock.acquire()
+        await self._lock.async_lock.acquire()
         return self.__enter__(use_lock=False)
 
     def __call__(self, value):
         """Stash value representation."""
+        if not self._open:
+            raise RuntimeError("stash is closed; use `with` statement")
+
         if hasattr(self, "_value"):
             raise ValueError("value already set")
 
@@ -175,13 +211,14 @@ class stashed:
                 return False
         finally:
             if use_lock:
-                self._lock.release()
+                self._lock.lock.release()
+            self._open = False
 
     async def __aexit__(self, exc_type, exc_value, exc_tb):
         try:
             return self.__exit__(exc_type, exc_value, exc_tb, use_lock=False)
         finally:
-            await self._async_lock.release()
+            await self._lock.async_lock.release()
 
     @property
     def is_used(self):
@@ -218,13 +255,10 @@ class FilePath(stashed):
         """
         self.name = name
         self.filename = None
+        self.path = path
+        self._open = False
         self._is_used = bool(use_stash)
         self._was_empty = True
-        self._lock = threading.Lock()
-        self._async_lock = asyncio.Lock()
-
-        if not self.is_used:
-            return
 
         frame = inspect.currentframe().f_back
         frame_info = inspect.getframeinfo(frame)
@@ -234,13 +268,22 @@ class FilePath(stashed):
             filename += f".{id}"
         filename = make_filename(filename)
 
-        if path is None:
-            path = os.path.join(os.path.dirname(frame_info.filename), "stash")
+        if self.path is None:
+            self.path = os.path.join(os.path.dirname(frame_info.filename), "stash")
 
-        self.filename = os.path.join(path, filename)
+        self.filename = os.path.join(self.path, filename)
 
-        if not os.path.exists(path):
-            os.makedirs(path)
+        with stash_registry:
+            key = (self.filename, self.name)
+            if not key in stash_registry.book:
+                lock = StashLock()
+                stash_registry.book[key] = lock
+            self._lock = stash_registry.book[key]
+
+    def _check_stash(self):
+        """Check stash."""
+        if not os.path.exists(self.path):
+            os.makedirs(self.path)
 
         if os.path.exists(self.filename):
             self._value = self.filename
@@ -248,6 +291,9 @@ class FilePath(stashed):
 
     def __call__(self, value):
         """Stash filepath value."""
+        if not self._open:
+            raise RuntimeError("stash is closed; use `with` statement")
+
         if hasattr(self, "_value"):
             raise ValueError("value already set")
 
@@ -288,14 +334,11 @@ class NamedFile(stashed):
         """
         self.name = name
         self.mode = mode
+        self.path = path
         self.filename = None
+        self._open = False
         self._is_used = bool(use_stash)
         self._was_empty = True
-        self._lock = threading.Lock()
-        self._async_lock = asyncio.Lock()
-
-        if not self.is_used:
-            return
 
         frame = inspect.currentframe().f_back
         frame_info = inspect.getframeinfo(frame)
@@ -305,13 +348,22 @@ class NamedFile(stashed):
             filename += f".{id}"
         filename = make_filename(filename)
 
-        if path is None:
-            path = os.path.join(os.path.dirname(frame_info.filename), "stash")
+        if self.path is None:
+            self.path = os.path.join(os.path.dirname(frame_info.filename), "stash")
 
-        self.filename = os.path.join(path, filename)
+        self.filename = os.path.join(self.path, filename)
 
-        if not os.path.exists(path):
-            os.makedirs(path)
+        with stash_registry:
+            key = (self.filename, self.name)
+            if not key in stash_registry.book:
+                lock = StashLock()
+                stash_registry.book[key] = lock
+            self._lock = stash_registry.book[key]
+
+    def _check_stash(self):
+        """Check stash."""
+        if not os.path.exists(self.path):
+            os.makedirs(self.path)
 
         if os.path.exists(self.filename):
             self._value = self.filename
@@ -319,6 +371,9 @@ class NamedFile(stashed):
 
     def __call__(self, file_object):
         """Stash file object."""
+        if not self._open:
+            raise RuntimeError("stash is closed; use `with` statement")
+
         if hasattr(self, "_value"):
             raise ValueError("value already set")
 
