@@ -27,7 +27,7 @@ then the code within the **with** block is not executed.
     with stashed("value") as stash:
        stash(generate_value())
 
-    print(stash.value())
+    print(stash.value)
 
 
 .. _`TestFlows.com Open-Source Software Testing Framework`: https://testflows.com
