@@ -96,9 +96,11 @@ where
 * `name` name of the stashed value inside the stash file
 * `id` custom stash id, default: `None`
 * `output` function to output the representation of the value, default: `None`
-* `path` custom stash path, default: `./stash`
+* `path` custom stash folder path, default: `./stash`
 * `encoder` custom encoder for the value, default: `json`
-* `use_stash` use stash, default: `True`
+* `use_stash` use stash, default: `True`. If `False`, then the stash will not be used
+  and the **with** block is always executed regardless if the value is
+  already stored in a stash
 
 In general, stash file name format is defined as
 
