@@ -18,7 +18,6 @@ import sys
 import json
 import pickle
 import marshal
-import asyncio
 import inspect
 import hashlib
 import weakref
@@ -44,12 +43,7 @@ class StashRegistry:
         self.lock.release()
 
 
-class StashLock:
-    def __init__(self):
-        self.lock = threading.Lock()
-        self.async_lock = asyncio.Lock()
-
-
+StashLock = threading.Lock
 stash_registry = StashRegistry()
 
 
@@ -138,6 +132,7 @@ class stashed:
         if self.path is None:
             self.path = os.path.join(os.path.dirname(frame_info.filename), "stash")
 
+        self.path = os.path.normpath(self.path)
         self.filename = os.path.join(self.path, filename)
 
         with stash_registry:
@@ -162,10 +157,9 @@ class stashed:
         sys.settrace(self._trace)
         raise StashValueFound()
 
-    def __enter__(self, use_lock=True):
+    def __enter__(self):
         self._open = True
-        if use_lock:
-            self._lock.lock.acquire()
+        self._lock.acquire()
 
         self._check_stash()
 
@@ -174,10 +168,6 @@ class stashed:
             sys.settrace(self.__skip__)
 
         return self
-
-    async def __aenter__(self):
-        await self._lock.async_lock.acquire()
-        return self.__enter__(use_lock=False)
 
     def __call__(self, value):
         """Stash value representation."""
@@ -203,22 +193,15 @@ class stashed:
 
             fd.write(f"""{self.name} = {repr_value}\n\n""")
 
-    def __exit__(self, exc_type, exc_value, exc_tb, use_lock=True):
+    def __exit__(self, exc_type, exc_value, exc_tb):
         try:
             if exc_value is not None:
                 if isinstance(exc_value, StashValueFound):
                     return True
                 return False
         finally:
-            if use_lock:
-                self._lock.lock.release()
+            self._lock.release()
             self._open = False
-
-    async def __aexit__(self, exc_type, exc_value, exc_tb):
-        try:
-            return self.__exit__(exc_type, exc_value, exc_tb, use_lock=False)
-        finally:
-            await self._lock.async_lock.release()
 
     @property
     def is_used(self):
@@ -271,6 +254,7 @@ class FilePath(stashed):
         if self.path is None:
             self.path = os.path.join(os.path.dirname(frame_info.filename), "stash")
 
+        self.path = os.path.normpath(self.path)
         self.filename = os.path.join(self.path, filename)
 
         with stash_registry:
@@ -351,6 +335,7 @@ class NamedFile(stashed):
         if self.path is None:
             self.path = os.path.join(os.path.dirname(frame_info.filename), "stash")
 
+        self.path = os.path.normpath(self.path)
         self.filename = os.path.join(self.path, filename)
 
         with stash_registry:
@@ -401,7 +386,7 @@ class NamedFile(stashed):
     def value(self):
         if hasattr(self, "_value"):
             if not self.is_used:
-                return self._value
+                return open(self._value.name, mode=self.mode)
             return open(self._value, mode=self.mode)
         raise ValueError("not found")
 

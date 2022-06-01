@@ -41,14 +41,16 @@ class SimpleClass:
         ("object", SimpleClass(), Name("object")),
     ],
 )
-def check_value(self, name, value, encoder=None):
+def check_value(self, name, value, encoder=None, use_stash=None):
     """Check stashing some value."""
     if encoder is None:
         encoder = self.context.encoder
+    if use_stash is None:
+        use_stash = self.context.use_stash
 
     name = f"{name}-{encoder.__name__}"
 
-    with stashed(name, encoder=encoder) as stash:
+    with stashed(name, encoder=encoder, use_stash=use_stash) as stash:
         stash(value)
 
     assert stash.value == value, error()
@@ -64,39 +66,94 @@ def check_empty_with_clause(self):
 
 
 @TestScenario
-def check_filepath(self):
+def check_filepath(self, use_stash=True):
     """Check stashing a value that contains a path to a file."""
-    with stashed.filepath("my_file.txt") as stash:
+    with stashed.filepath("my_file.txt", use_stash=use_stash) as stash:
         note("creating new file")
         with open("my_file.txt", mode="w") as fd:
             fd.write("file data")
         stash(fd.name)
-        os.remove("my_file.txt")
+        if stash.is_used:
+            os.remove("my_file.txt")
 
-    assert stash.value == "tests/stash/my_file.txt", error()
+    if use_stash:
+        assert stash.value == "tests/stash/my_file.txt", error()
+    else:
+        assert stash.value == "my_file.txt", error()
 
     with open(stash.value, mode="r") as fd:
         data = fd.read()
 
-    assert data == "file data", error()
+    if not use_stash and self.flags & PARALLEL:
+        assert data in ("file data", ""), error()
+    else:
+        assert data == "file data", error()
 
 
 @TestScenario
-def check_namedfile(self):
+def check_namedfile(self, use_stash=True):
     """Check stashing a named file object."""
-    with stashed.namedfile("my_namedfile.txt") as stash:
+    with stashed.namedfile("my_namedfile.txt", use_stash=use_stash) as stash:
         note("creating new file")
         with open("my_file.txt", mode="w") as fd:
             fd.write("file data")
             stash(fd)
-        os.remove("my_file.txt")
+        if stash.is_used:
+            note("removing original file")
+            os.remove("my_file.txt")
 
-    assert stash.value.name == "tests/stash/my_namedfile.txt", error()
+    if use_stash:
+        assert stash.value.name == "tests/stash/my_namedfile.txt", error()
+    else:
+        assert stash.value.name == "my_file.txt", error()
 
     with stash.value as fd:
         data = fd.read()
 
-    assert data == b"file data", error()
+    if not use_stash and self.flags & PARALLEL:
+        assert data in (b"file data", b""), error()
+    else:
+        assert data == b"file data", error()
+
+
+@TestScenario
+def check_namedfile_parallel(self, count=100, use_stash=True):
+    """Check stashing a named file object in parallel."""
+    stash_file = "tests/stash/my_namedfile.txt"
+
+    with Given("removing stash file if exists"):
+        if os.path.exists(stash_file):
+            os.remove(stash_file)
+
+    with When("I try to access stash in parallel"):
+        for i in range(count):
+            By(f"try #{i}", test=check_namedfile, parallel=True)(use_stash=use_stash)
+
+
+@TestScenario
+def check_filepath_parallel(self, count=100, use_stash=True):
+    """Check stashing a value that contains a path to a file in parallel."""
+    stash_file = "tests/stash/my_file.txt"
+
+    with Given("removing stash file if exists"):
+        if os.path.exists(stash_file):
+            os.remove(stash_file)
+
+    with When("I try to access stash in parallel"):
+        for i in range(count):
+            By(f"try #{i}", test=check_filepath, parallel=True)(use_stash=use_stash)
+
+
+@TestScenario
+def check_namedfile_parallel_no_stash(self, count=100):
+    """Check stashing a named file object in parallel when use_stash=False."""
+    check_namedfile_parallel(use_stash=False)
+
+
+@TestScenario
+def check_filepath_parallel_no_stash(self, count=100):
+    """Check stashing a value that contains a path to a file in parallel when use_stash=False."""
+    check_filepath_parallel(use_stash=False)
 
 
 @TestOutline(Scenario)
@@ -112,6 +169,27 @@ def check_namedfile(self):
 def check_values(self, encoder):
     """Check stashing values using different encoders."""
     self.context.encoder = encoder
+    self.context.use_stash = True
+
+    Scenario(run=check_value)
+
+
+@TestOutline(Scenario)
+@Examples(
+    "encoder",
+    [
+        (stashed.encoder.json, Name("json")),
+        (stashed.encoder.marshal, Name("marshal")),
+        (stashed.encoder.pickle, Name("pickle")),
+        (stashed.encoder.jsonpickle, Name("jsonpickle")),
+    ],
+)
+def check_values_no_stash(self, encoder):
+    """Check stashing values using different encoders
+    when use_stash=False and stash is not used.
+    """
+    self.context.encoder = encoder
+    self.context.use_stash = False
     Scenario(run=check_value)
 
 
