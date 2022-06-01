@@ -20,6 +20,7 @@ Here is an example how to use `testflows.stash` module
 and the `stashed` context manager to stash a value
 returned by a function that takes a non trivial time to execute.
 
+> example1.py
 ```python
 import time
 from testflows.stash import stashed
@@ -46,10 +47,28 @@ to be stashed is added by calling `stash` instance with the value
 to be stashed. In this case, the result of the `generated_value()`
 function.
 
-Output:
 ```bash
+$ python3 example1.py
 Generating a value that takes a long time...
 my generated value
+```
+
+Note that `stash` folder will be created in the same directory as the source file.
+
+```bash
+$ find
+./stash
+./stash/example1.py.stash
+./example1.py
+```
+
+The `stash` folder will contain a file that stores the stashed value by using the name specified
+upon creation of the stash instance. The name of the stash file will have the same prefix as the
+original source file.
+
+```bash
+$ cat ./stash/example1.py.stash 
+value = '"my generated value"'
 ```
 
 On the second run, the value is found in a stash and the body of the
@@ -57,8 +76,8 @@ On the second run, the value is found in a stash and the body of the
 and the stashed value is available using the `stash.value`
 where `stash` is the instance of the `stashed()` context manager.
 
-Output:
 ```bash
+$ python3 example1.py
 my generated value
 ```
 
