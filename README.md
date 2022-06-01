@@ -66,12 +66,6 @@ The `stash` folder will contain a file that stores the stashed value by using th
 upon creation of the stash instance. The name of the stash file will have the same prefix as the
 original source file.
 
-In general, stash file name format is defined as
-
-```
-<source file name>.<id>.stas
-```
-
 The content of the file will have the following
 
 ```bash
@@ -94,17 +88,23 @@ my generated value
 The `stashed` context manager can take the following arguments.
 
 ```python
-stashed(name, id=None, output=None, path=None, encoder=None, use_stash=True)
+stashed(name, id=None, output=None, path="./stash", encoder=json, use_stash=True)
 ```
 
 where
 
 * `name` name of the stashed value inside the stash file
 * `id` custom stash id, default: `None`
-* `output` function to output the representation of the value
+* `output` function to output the representation of the value, default: `None`
 * `path` custom stash path, default: `./stash`
 * `encoder` custom encoder for the value, default: `json`
 * `use_stash` use stash, default: `True`
+
+In general, stash file name format is defined as
+
+```
+<source file name>.<id>.stash
+```
 
 [TestFlows.com Open-Source Software Testing Framework]: https://testflows.com
 
