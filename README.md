@@ -1,8 +1,5 @@
 # [TestFlows.com Open-Source Software Testing Framework] Stash
 
-**The `testflows.stash` module is still work in progress and is currently under development.
-Please use it only for reference.**
-
 # Why
 
 Allows to stash values or files that are generated during test program execution
