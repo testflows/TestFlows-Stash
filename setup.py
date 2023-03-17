@@ -24,7 +24,7 @@ setup(
     author="Vitaliy Zakaznikov",
     author_email="vzakaznikov@testflows.com",
     long_description=long_description,
-    long_description_content_type="text/x-rst",
+    long_description_content_type="text/markdown",
     url="https://github.com/testflows/testflows-stash",
     classifiers=[
         "Development Status :: 2 - Pre-Alpha",
